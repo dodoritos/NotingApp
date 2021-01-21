@@ -6,6 +6,7 @@ import android.annotation.SuppressLint;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.os.Bundle;
+import android.view.ScaleGestureDetector;
 import android.widget.RadioGroup;
 
 public class MainActivity extends AppCompatActivity {
@@ -70,6 +71,8 @@ public class MainActivity extends AppCompatActivity {
                 default:
                     drawingCanva.setBrush(brush3);
             }
+
         });
+
     }
 }
