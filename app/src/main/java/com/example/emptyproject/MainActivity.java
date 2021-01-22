@@ -5,6 +5,8 @@ import androidx.appcompat.app.AppCompatActivity;
 import android.annotation.SuppressLint;
 import android.graphics.Color;
 import android.graphics.Paint;
+import android.graphics.Rect;
+import android.graphics.RectF;
 import android.os.Bundle;
 import android.view.ScaleGestureDetector;
 import android.widget.RadioGroup;
@@ -19,9 +21,11 @@ public class MainActivity extends AppCompatActivity {
     Paint brush3 = new Paint();
     Paint styleBrush = new Paint();
 
+
     @SuppressLint("NonConstantResourceId")
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+
 
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
