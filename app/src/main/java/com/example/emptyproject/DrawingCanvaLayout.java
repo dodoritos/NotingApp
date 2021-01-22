@@ -6,19 +6,25 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Path;
+import android.graphics.PointF;
 import android.graphics.Rect;
 import android.graphics.RectF;
 import android.util.AttributeSet;
 import android.util.Log;
+import android.view.GestureDetector;
 import android.view.MotionEvent;
 import android.view.ScaleGestureDetector;
 import android.widget.FrameLayout;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.core.view.MotionEventCompat;
+import androidx.core.view.ScaleGestureDetectorCompat;
 import androidx.core.view.ViewCompat;
 
 import java.util.ArrayList;
+
+import static android.view.MotionEvent.INVALID_POINTER_ID;
 
 public class DrawingCanvaLayout extends FrameLayout {
 
@@ -27,22 +33,12 @@ public class DrawingCanvaLayout extends FrameLayout {
     private Paint brush = new Paint();
 
     private ScaleGestureDetector scaleGestureDetector;
+
+
     private float scaleFactor = 1.f;
-    // Viewport extremes. See mCurrentViewport for a discussion of the viewport.
-    private static final float AXIS_X_MIN = -1f;
-    private static final float AXIS_X_MAX = 1f;
-    private static final float AXIS_Y_MIN = -1f;
-    private static final float AXIS_Y_MAX = 1f;
-
-
-    // The current viewport. This rectangle represents the currently visible
-    // chart domain and range.
-    private RectF mCurrentViewport =
-            new RectF(AXIS_X_MIN, AXIS_Y_MIN, AXIS_X_MAX, AXIS_Y_MAX);
-
-    // The current destination rectangle (in pixel coordinates) into which the
-    // chart data should be drawn.
-    private Rect mContentRect;
+    private int mActivePointerId;
+    private float translateX = 0;
+    private float translateY = 0;
 
 
     public DrawingCanvaLayout(@NonNull Context context) {
@@ -85,22 +81,130 @@ public class DrawingCanvaLayout extends FrameLayout {
         this.brush = brush;
     }
 
+    float lastTouchX = 0;
+    float lastTouchY = 0;
     @SuppressLint("ClickableViewAccessibility")
     @Override
     public boolean onTouchEvent(MotionEvent event) {
 
-        // Let the ScaleGestureDetector inspect all events.
+        // Get the pointer ID
+        mActivePointerId = event.getPointerId(0);
+
+        // ... Many touch events later...
+
         scaleGestureDetector.onTouchEvent(event);
-        //do not return true directly but look for other events
-        //return true;
+
+        // Use the pointer ID to find the index of the active pointer
+        // and fetch its position
+        int pointerIndex = event.findPointerIndex(mActivePointerId);
 
 
-        // detect drawing
-        float pointX = event.getX()/ scaleFactor;
-        float pointY = event.getY()/ scaleFactor;
+        int action = MotionEventCompat.getActionMasked(event);
+        // Get the index of the pointer associated with the action.
+        int index = MotionEventCompat.getActionIndex(event);
+        int contactX = -1;
+        int contactY = -1;
 
-        if (!scaleGestureDetector.isInProgress()) {
-            Log.d("Draw", String.valueOf(event.getAction()));
+
+        Log.d("Debug motion","The action is " + actionToString(action));
+
+        if (event.getPointerCount() > 1) {
+            Log.d("Debug motion","Multitouch event");
+            // The coordinates of the current screen contact, relative to
+            // the responding View or Activity.
+            contactX = (int)MotionEventCompat.getX(event, index);
+            contactY = (int)MotionEventCompat.getY(event, index);
+            switch (action) {
+                case MotionEvent.ACTION_DOWN: {
+                    pointerIndex = MotionEventCompat.getActionIndex(event);
+                    final float touch_x = MotionEventCompat.getX(event, pointerIndex);
+                    final float touch_y = MotionEventCompat.getY(event, pointerIndex);
+
+                    // Remember where we started (for dragging)
+                    lastTouchX = touch_x;
+                    lastTouchY = touch_y;
+                    // Save the ID of this pointer (for dragging)
+                    mActivePointerId = MotionEventCompat.getPointerId(event, 0);
+                    break;
+                }
+
+                case MotionEvent.ACTION_MOVE: {
+                    // Find the index of the active pointer and fetch its position
+                    pointerIndex =
+                            MotionEventCompat.findPointerIndex(event, mActivePointerId);
+
+                    final float x = MotionEventCompat.getX(event, pointerIndex);
+                    final float y = MotionEventCompat.getY(event, pointerIndex);
+
+                    // Calculate the distance moved
+                    float deltaX = x - lastTouchX;
+                    float deltaY = y - lastTouchY;
+
+                    float newDeltaX = deltaX;
+                    float newDeltaY = deltaY;
+
+                    translateX += deltaX;
+                    translateY += deltaY;
+
+                    invalidate();
+
+                    // Remember this touch position for the next move event
+                    lastTouchX = x;
+                    lastTouchY = y;
+
+
+                    //Log.d("Debug motion scroll", String.valueOf(x));
+                    Log.d("Debug motion scroll", String.valueOf(deltaX));
+
+                    break;
+                }
+
+                case MotionEvent.ACTION_UP: {
+                    mActivePointerId = INVALID_POINTER_ID;
+                    break;
+                }
+
+                case MotionEvent.ACTION_CANCEL: {
+                    mActivePointerId = INVALID_POINTER_ID;
+                    break;
+                }
+
+                case MotionEvent.ACTION_POINTER_UP: {
+
+                    pointerIndex = MotionEventCompat.getActionIndex(event);
+                    final int pointerId = MotionEventCompat.getPointerId(event, pointerIndex);
+
+                    if (pointerId == mActivePointerId) {
+                        // This was our active pointer going up. Choose a new
+                        // active pointer and adjust accordingly.
+                        final int newPointerIndex = pointerIndex == 0 ? 1 : 0;
+                        lastTouchX = MotionEventCompat.getX(event, newPointerIndex);
+                        lastTouchY = MotionEventCompat.getY(event, newPointerIndex);
+                        mActivePointerId = MotionEventCompat.getPointerId(event, newPointerIndex);
+                    }
+                    break;
+                }
+            }
+
+            // TODO: end the previouly drown line or better event handling in single touch event
+            path.moveTo(contactX/ scaleFactor, contactY/ scaleFactor); //moyen...
+            // essayer de jouer avec le nomero de pointeur
+
+            return true;
+
+        } else {
+            // Single touch event
+            Log.d("Debug motion","Single touch event");
+            contactX = (int)MotionEventCompat.getX(event, index);
+            contactY = (int)MotionEventCompat.getY(event, index);
+
+            // detect drawing
+            // float pointX = event.getX()/ scaleFactor;
+            // float pointY = event.getY()/ scaleFactor;
+
+            float pointX = MotionEventCompat.getX(event, index)/ scaleFactor;
+            float pointY = MotionEventCompat.getY(event, index)/ scaleFactor;
+
             switch (event.getAction()) {
                 case MotionEvent.ACTION_DOWN:
                     path.moveTo(pointX, pointY);
@@ -109,7 +213,6 @@ public class DrawingCanvaLayout extends FrameLayout {
                     path.lineTo(pointX, pointY);
                     break;
                 case MotionEvent.ACTION_UP:
-                    Log.d("Draw", "UP");
                     pathList.add(new ColoredPath(path, brush));
                     path = new Path();
                     brush = new Paint(brush);
@@ -119,8 +222,30 @@ public class DrawingCanvaLayout extends FrameLayout {
             }
             postInvalidate();
         }
+
+
+        // Let the ScaleGestureDetector inspect all events.
+        //do not return true directly but look for other events
+        //return true;
         return false;
     }
+
+
+    // Given an action int, returns a string description
+    private static String actionToString(int action) {
+        switch (action) {
+
+            case MotionEvent.ACTION_DOWN: return "Down";
+            case MotionEvent.ACTION_MOVE: return "Move";
+            case MotionEvent.ACTION_POINTER_DOWN: return "Pointer Down";
+            case MotionEvent.ACTION_UP: return "Up";
+            case MotionEvent.ACTION_POINTER_UP: return "Pointer Up";
+            case MotionEvent.ACTION_OUTSIDE: return "Outside";
+            case MotionEvent.ACTION_CANCEL: return "Cancel";
+        }
+        return "";
+    }
+
 
     @Override
     protected void onDraw(Canvas canvas) {
@@ -128,6 +253,7 @@ public class DrawingCanvaLayout extends FrameLayout {
 
         canvas.save();
         canvas.scale(scaleFactor, scaleFactor);
+        canvas.translate(translateX, translateY);
 
         // draw all lines
         for (ColoredPath p : pathList) {
@@ -141,33 +267,22 @@ public class DrawingCanvaLayout extends FrameLayout {
 
     }
 
-    /**
-     * Sets the current viewport (defined by mCurrentViewport) to the given
-     * X and Y positions. Note that the Y value represents the topmost pixel position,
-     * and thus the bottom of the mCurrentViewport rectangle.
-     */
-    private void setViewportBottomLeft(float x, float y) {
-        /*
-         * Constrains within the scroll range. The scroll range is simply the viewport
-         * extremes (AXIS_X_MAX, etc.) minus the viewport size. For example, if the
-         * extremes were 0 and 10, and the viewport size was 2, the scroll range would
-         * be 0 to 8.
-         */
-
-        float curWidth = mCurrentViewport.width();
-        float curHeight = mCurrentViewport.height();
-        x = Math.max(AXIS_X_MIN, Math.min(x, AXIS_X_MAX - curWidth));
-        y = Math.max(AXIS_Y_MIN + curHeight, Math.min(y, AXIS_Y_MAX));
-
-        mCurrentViewport.set(x, y - curHeight, x + curWidth, y);
-
-        // Invalidates the View to update the display.
-        ViewCompat.postInvalidateOnAnimation(this);
-    }
 
 
-    private class ScaleListener
+
+        private class ScaleListener
             extends ScaleGestureDetector.SimpleOnScaleGestureListener {
+        /**
+         * This is the active focal point in terms of the viewport. Could be a local
+         * variable but kept here to minimize per-frame allocations.
+         */
+        private PointF viewportFocus = new PointF();
+        @Override
+        public boolean onScaleBegin(ScaleGestureDetector detector) {
+
+            return true;
+        }
+
         @Override
         public boolean onScale(ScaleGestureDetector detector) {
             scaleFactor *= detector.getScaleFactor();
@@ -177,12 +292,7 @@ public class DrawingCanvaLayout extends FrameLayout {
 
             invalidate();
             return true;
-        }
 
-        @Override
-        public boolean onScaleBegin(ScaleGestureDetector detector) {
-            Log.d("Scale Begin", String.valueOf(scaleFactor));
-            return true;
         }
 
         @Override
