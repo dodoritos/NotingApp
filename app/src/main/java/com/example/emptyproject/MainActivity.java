@@ -5,16 +5,13 @@ import androidx.appcompat.app.AppCompatActivity;
 import android.annotation.SuppressLint;
 import android.graphics.Color;
 import android.graphics.Paint;
-import android.graphics.Rect;
-import android.graphics.RectF;
 import android.os.Bundle;
-import android.view.ScaleGestureDetector;
 import android.widget.RadioGroup;
 
 public class MainActivity extends AppCompatActivity {
 
     private RadioGroup radioGroup;
-    private DrawingCanvaLayout drawingCanva;
+    private ScrollableDrawingCanva scrollableDrawingCanva;
 
     Paint brush1 = new Paint();
     Paint gommeBrush = new Paint();
@@ -32,7 +29,8 @@ public class MainActivity extends AppCompatActivity {
         //DrawingCanva drawingCanva = new DrawingCanva(this);
         //setContentView(drawingCanva);
         radioGroup = findViewById(R.id.radioGroup);
-        drawingCanva = findViewById(R.id.drawingCanva);
+        scrollableDrawingCanva = findViewById(R.id.scrollableDrawingCanva);
+        //paper.setDrawingCanva(drawingCanva);
         brush1.setAntiAlias(true);
         brush1.setColor(Color.BLACK);
         brush1.setStyle(Paint.Style.STROKE);
@@ -61,19 +59,19 @@ public class MainActivity extends AppCompatActivity {
         radioGroup.setOnCheckedChangeListener((group, checkedId) -> {
             switch (checkedId){
                 case R.id.penButton:
-                    drawingCanva.setBrush(brush1);
+                    scrollableDrawingCanva.setBrush(brush1);
                     break;
                 case R.id.gomButton:
-                    drawingCanva.setBrush(gommeBrush);
+                    scrollableDrawingCanva.setBrush(gommeBrush);
                     break;
                 case R.id.redButton:
-                    drawingCanva.setBrush(brush3);
+                    scrollableDrawingCanva.setBrush(brush3);
                     break;
                 case R.id.styleButton:
-                    drawingCanva.setBrush(styleBrush);
+                    scrollableDrawingCanva.setBrush(styleBrush);
                     break;
                 default:
-                    drawingCanva.setBrush(brush3);
+                    scrollableDrawingCanva.setBrush(brush3);
             }
 
         });

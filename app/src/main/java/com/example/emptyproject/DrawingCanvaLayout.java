@@ -32,10 +32,6 @@ public class DrawingCanvaLayout extends FrameLayout {
 
     private final String TAG = "DrawingCanvaLayout";
 
-    private final float MAX_SCALE_FACTOR = 10f;
-    private final float MIN_SCALE_FACTOR = 0.1f;
-
-    private Rect layoutLimitsRectangle = new Rect(-100, -100, 3000, 3000);
     DisplayMetrics displayMetrics = new DisplayMetrics();
 
 
@@ -43,48 +39,11 @@ public class DrawingCanvaLayout extends FrameLayout {
     private final ArrayList<ColoredPath> pathList = new ArrayList<>();
     private Paint brush = new Paint();
 
-    private ScaleGestureDetector scaleGestureDetector;
 
-
-    private final GestureDetector.SimpleOnGestureListener gestureListener
-            = new GestureDetector.SimpleOnGestureListener() {
-        @Override
-        public boolean onScroll(MotionEvent e1, MotionEvent e2,
-                                float distanceX, float distanceY) {
-
-            translate(distanceX, distanceY);
-            invalidate();
-            return true;
-        }
-    };
-    private void translate(float distanceX, float distanceY) {
-        float newTranslateX = translateX - distanceX / scaleFactor;
-        float newTranslateY = translateY - distanceY / scaleFactor;
-
-        ((Activity) getContext()).getWindowManager()
-                .getDefaultDisplay()
-                .getMetrics(displayMetrics);
-
-        int screenHeight = displayMetrics.heightPixels;
-        int screenWidth = displayMetrics.widthPixels;
-
-        Log.d(TAG, "translate: " + -newTranslateX +" + "+ screenWidth +" < "+ layoutLimitsRectangle.right);
-        if (-newTranslateX + screenWidth/scaleFactor < layoutLimitsRectangle.right
-                && -newTranslateX > layoutLimitsRectangle.left)
-            translateX = newTranslateX;
-        if (-newTranslateY + screenHeight/scaleFactor < layoutLimitsRectangle.bottom
-                && -newTranslateY > layoutLimitsRectangle.top)
-            translateY = newTranslateY;
-
-    }
-
-    private GestureDetector gestureDetector;
-
-
-    private float scaleFactor = 1.f;
+    protected float scaleFactor = 1.f;
     private int activePointerId;
-    private float translateX = 0;
-    private float translateY = 0;
+    protected float translateX = 0;
+    protected float translateY = 0;
 
 
     public DrawingCanvaLayout(@NonNull Context context) {
@@ -112,8 +71,6 @@ public class DrawingCanvaLayout extends FrameLayout {
     }
 
     private void init(Context context) {
-        scaleGestureDetector = new ScaleGestureDetector(context, new ScaleListener());
-        gestureDetector = new GestureDetector(context, gestureListener);
     }
 
     private void setupBrush() {
@@ -131,88 +88,33 @@ public class DrawingCanvaLayout extends FrameLayout {
     @SuppressLint("ClickableViewAccessibility")
     @Override
     public boolean onTouchEvent(MotionEvent event) {
+        // Single touch event
+        float onScreenX = event.getX();
+        float onScreenY = event.getY();
 
-        // Get the pointer ID
-        activePointerId = event.getPointerId(0);
+        // detect drawing
+        // float pointX = event.getX()/ scaleFactor;
+        // float pointY = event.getY()/ scaleFactor;
 
-        // ... Many touch events later...
+        float onLayoutX = onScreenX/ scaleFactor - translateX;
+        float onLayoutY = onScreenY/ scaleFactor - translateY;
 
-        scaleGestureDetector.onTouchEvent(event);
-
-        // Use the pointer ID to find the index of the active pointer
-        // and fetch its position
-        int pointerIndex = event.findPointerIndex(activePointerId);
-
-
-        int action = MotionEventCompat.getActionMasked(event);
-        // Get the index of the pointer associated with the action.
-        int index = MotionEventCompat.getActionIndex(event);
-        int onScreenX = -1;
-        int onScreenY = -1;
-        /*
         switch (event.getAction()) {
-            case MotionEvent.ACTION_UP:
-                Log.d("MultyTouch", "onTouchEvent"+event.getPointerCount()+": UP");
-                break;
-            case MotionEvent.ACTION_POINTER_UP:
-                Log.d("MultyTouch", "onTouchEvent"+event.getPointerCount()+": POINTER UP");
-                break;
             case MotionEvent.ACTION_DOWN:
-                Log.d("MultyTouch", "onTouchEvent"+event.getPointerCount()+": DOWN");
+                path.moveTo(onLayoutX, onLayoutY);
+                return true;
+            case MotionEvent.ACTION_MOVE:
+                path.lineTo(onLayoutX, onLayoutY);
                 break;
-            case MotionEvent.ACTION_POINTER_DOWN:
-                Log.d("MultyTouch", "onTouchEvent"+event.getPointerCount()+": POINTER DOWN");
+            case MotionEvent.ACTION_UP:
+                pathList.add(new ColoredPath(path, brush));
+                path = new Path();
+                brush = new Paint(brush);
                 break;
-            case MotionEvent.ACTION_OUTSIDE:
-                Log.d("MultyTouch", "onTouchEvent"+event.getPointerCount()+": OUTSIDE");
-                break;
-            case MotionEvent.ACTION_CANCEL:
-                Log.d("MultyTouch", "onTouchEvent"+event.getPointerCount()+": CANCEL");
-                break;
+            default:
+                return false;
         }
-
-         */
-
-        if (event.getPointerCount() > 1) {
-            gestureDetector.onTouchEvent(event);
-
-
-            // TODO: end the previouly drown line or better event handling in single touch event
-            path.moveTo(onScreenX/ scaleFactor, onScreenY/ scaleFactor); //moyen...
-            // essayer de jouer avec le nomero de pointeur
-
-
-            return true;
-
-        } else {
-            // Single touch event
-            onScreenX = (int)MotionEventCompat.getX(event, index);
-            onScreenY = (int)MotionEventCompat.getY(event, index);
-
-            // detect drawing
-            // float pointX = event.getX()/ scaleFactor;
-            // float pointY = event.getY()/ scaleFactor;
-
-            float onLayoutX = onScreenX/ scaleFactor - translateX;
-            float onLayoutY = onScreenY/ scaleFactor - translateY;
-
-            switch (event.getAction()) {
-                case MotionEvent.ACTION_DOWN:
-                    path.moveTo(onLayoutX, onLayoutY);
-                    return true;
-                case MotionEvent.ACTION_MOVE:
-                    path.lineTo(onLayoutX, onLayoutY);
-                    break;
-                case MotionEvent.ACTION_UP:
-                    pathList.add(new ColoredPath(path, brush));
-                    path = new Path();
-                    brush = new Paint(brush);
-                    break;
-                default:
-                    return false;
-            }
-            postInvalidate();
-        }
+        postInvalidate();
 
 
         // Let the ScaleGestureDetector inspect all events.
@@ -239,7 +141,7 @@ public class DrawingCanvaLayout extends FrameLayout {
 
 
     @Override
-    protected void onDraw(Canvas canvas) {
+    public void onDraw(Canvas canvas) {
         super.onDraw(canvas);
         //((Activity) getContext()).getWindowManager()
         //        .getDefaultDisplay()
@@ -247,9 +149,6 @@ public class DrawingCanvaLayout extends FrameLayout {
         //Log.d("height", "onDraw: "+ getHeight()*scaleFactor + " x " + getWidth()*scaleFactor);
         //Log.d("height", "onDraw: "+ displayMetrics.heightPixels + " x " + displayMetrics.widthPixels);
 
-        canvas.save();
-        canvas.scale(scaleFactor, scaleFactor);
-        canvas.translate(translateX, translateY);
 
         // draw all lines
         for (ColoredPath p : pathList) {
@@ -257,41 +156,5 @@ public class DrawingCanvaLayout extends FrameLayout {
         }
         // draw current line
         canvas.drawPath(path, brush);
-
-        // after draw
-        canvas.restore();
-
-    }
-
-
-
-
-    private class ScaleListener
-        extends ScaleGestureDetector.SimpleOnScaleGestureListener {
-        /**
-         * This is the active focal point in terms of the viewport. Could be a local
-         * variable but kept here to minimize per-frame allocations.
-         */
-        @Override
-        public boolean onScale(ScaleGestureDetector detector) {
-            scaleFactor *= detector.getScaleFactor();
-
-            // Don't let the object get too small or too large.
-            scaleFactor = Math.max(MIN_SCALE_FACTOR, Math.min(scaleFactor, MAX_SCALE_FACTOR));
-
-            float focusX = scaleGestureDetector.getFocusX();
-            float focusY = scaleGestureDetector.getFocusY();
-
-            if (MIN_SCALE_FACTOR < scaleFactor && scaleFactor < MAX_SCALE_FACTOR) {
-                scaleFromPoint(detector, focusX, focusY);
-            }
-            invalidate();
-            return true;
-        }
-
-        private void scaleFromPoint(ScaleGestureDetector detector, float x, float y) {
-            translate(-x * (1-detector.getScaleFactor()),
-                    -y * (1-detector.getScaleFactor()));
-        }
     }
 }
